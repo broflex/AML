@@ -1,0 +1,561 @@
+
+;;; -----------------------------
+;;; CONSTRAINT DEFINITIONS
+;;; -----------------------------
+
+(define-class general-joint-solid-model
+  :inherit-from (frame-data-model)
+  :properties (
+               max-element-size 0.004
+               scale-factor (default 1.2)
+               
+               point-ref (default nil)
+               direction (default nil)
+               (z-vector-ref :class 'vector-data-model
+                   direction ^^direction
+                   )
+               (x-vector-ref :class 'vector-data-model
+                   direction (arbitrary-normal-to-vector ^^direction)
+                   )
+               
+               constraint-type (default nil)
+               
+               from-link (nth (position (nth 0 ^link-incidence) ^^link-list) ^^link-ref-list)
+               to-link (nth (position (nth 1 ^link-incidence) ^^link-list) ^^link-ref-list)
+               
+               link-incidence (default nil)
+
+               link-ref-incident-on-constraint nil
+               
+               constraint-variable (default (list ))
+               )
+  )
+
+(define-class master-joint-model
+  :inherit-from (general-joint-solid-model)
+  :properties (
+
+               max-width (* ^scale-factor (max (first (the local-max-dimension (:from ^female-element-solid-model))) (first (the local-max-dimension (:from ^male-element-solid-model)) ) ) )
+               max-height (* ^scale-factor (max (second (the local-max-dimension (:from ^female-element-solid-model))) (second (the local-max-dimension (:from ^male-element-solid-model)) ) ) )
+               
+               link-ref-incident-on-constraint (list
+                                                (the link-ref-incident-on-constraint (:from ^male-element-solid-model))
+                                                (the link-ref-incident-on-constraint (:from ^female-element-solid-model))
+                                                )
+               )
+  :subobjects (
+               (male-element-solid-model :class (read-from-string (concatenate !constraint-type "-male-element"))
+
+                   )
+               (female-element-solid-model :class (read-from-string (concatenate !constraint-type "-female-element"))
+                   (point-ref :class 'point-data-model
+                              coordinates (convert-coords ^^superior '(0 0 0) :from :local :to :global)
+                              )
+                   direction (convert-vector ^superior '(0 0 1) :from :local :to :global)
+                   
+                   )
+               )
+  )
+(define-class sub-point-model
+  :inherit-from (point-data-model)
+  :properties (
+               reference-object ^main-frame
+               coordinates '(0 0 0)
+               )
+  )
+(define-class sub-frame-model
+  :inherit-from (frame-data-model)
+  :properties (
+               (point-ref :class 'point-data-model
+                   coordinates (convert-coords ^sub-point-ref (the coordinates (:from ^sub-point-ref)))
+;;;                    coordinates (add-vectors (the coordinates (:from ^point-ref))
+;;;                                             (multiply-vector-by-scalar (normalize ^direction) 0))
+                   )
+               )
+  )
+
+(define-class joint-element-model
+  :inherit-from (general-joint-solid-model)
+  :properties (
+               union-list nil
+               difference-list nil
+               
+               display? t
+               gender (read-from-string (remove "-element-solid-model" (write-to-string (object-name !superior)))) 
+               gender_int (case ^gender ('male 0) ('female 1) )
+               link-incidence (nth ^gender_int ^^link-incidence)
+               link-ref-incident-on-constraint (get-link-ref ^links ^link-incidence)
+               
+               local-joint-index (position !superior (the constraints-incident-on-link-list (:from ^link-ref-incident-on-constraint)) )
+               members-connected-to-joint-element (loop for member in (the members-ref-list (:from (the link-solid-geometry (:from ^link-ref-incident-on-constraint)) ))
+                                                    when (position !superior (the connection-between-constraints (:from member)))
+                                                    collect member
+                                                    )
+               local-max-dimension (loop for member in (the members-ref-list (:from (the link-solid-geometry (:from ^link-ref-incident-on-constraint))))
+                                     for pos = (position !superior (the connection-between-constraints (:from member)))
+                                     when (and pos (the display? (:from member)) )
+                                     maximize (if (= pos 0)
+                                                  (max-width (the cross-section_D (:from member)) )
+                                                (max-width (the cross-section_A (:from member)) ) ) into max-w
+                                     and  maximize (if (= pos 0)
+                                                       (max-height (the cross-section_D (:from member)) )
+                                                     (max-height (the cross-section_A (:from member)) ) ) into max-h
+                                     finally (return (list max-w max-h))
+                                     )
+
+               (sub-point-ref :class 'sub-point-model
+                   )
+               )
+  :subobjects (
+               (main-frame :class 'frame-data-model
+                   ;; inherited frame properties used in main-frame and sub-frame
+                  (x-vector-ref :class 'vector-data-model
+                                direction (let (
+                                      (first-sweep (nth 0 ^members-connected-to-joint-element))
+                                      (x-dir  (subtract-vectors
+                                               (the coordinates (:from (the point-ref (:from (nth 0 (the connection-between-constraints (:from first-sweep) ) )))))
+                                               (the coordinates (:from (the point-ref (:from (nth 1 (the connection-between-constraints (:from first-sweep) ) )))))
+                                               ))
+                                      (x-dir-normal (cross-product ^^direction (cross-product ^^direction x-dir)))
+                                      )
+                                      (if (equal 0 (vector-length x-dir-normal))
+                                          x-dir-normal
+                                        (arbitrary-normal-to-vector ^^direction)
+                                        )
+                                  )
+                                )
+                   )
+
+               (sub-frame :class 'sub-frame-model
+                   )
+               (joint-center-node :class 'mesh-node-class
+                   coordinates (the origin (:from ^main-frame))
+                   mesh-object (the link-mesh (:from (the link-mesh-model (:from ^link-ref-incident-on-constraint))))
+                   )
+               )
+  )
+
+(define-method get-constraint-incidence master-joint-model (link-index)
+  (let (
+        (pos (position link-index !link-incidence) )
+        )
+    (when pos
+      (nth pos (children (the) :class 'general-joint-solid-model))
+      )
+    )
+  )
+
+(define-method get-constraint-incidence joint-element-model (link-index)
+ (when (member link-index ^link-incidence) (the self))
+ )
+
+
+(define-class open-constraint-class
+  :inherit-from (master-joint-model)
+  :properties (
+               )
+  )
+(define-class open-male-element
+  :inherit-from (joint-element-model)
+  :properties (
+               (sub-point-ref :class 'sub-point-model
+                   orientation (list
+                                (translate (list 0 0 (/ (- ^^max-height) 1) ))
+                                )
+                   )
+               )
+  )
+(define-class open-female-element
+  :inherit-from (joint-element-model)
+  :properties (
+               (sub-point-ref :class 'sub-point-model
+;;;                    orientation (list
+;;;                                 (translate (list 0 0 (/ ^^max-height 2) ))
+;;;                                 )
+                   )
+               )
+  )
+
+(define-class rigid-constraint-class
+  :inherit-from (master-joint-model)
+  :properties (
+               )
+  )
+
+
+(define-class helical-constraint-class
+  :inherit-from (master-joint-model)
+  :properties (
+;;;                joint-variables 'theta or 's
+               ;;;                to element
+;;;                (temp-element :class 'vector-data-model
+;;;                    point-ref  ^^point-ref
+;;;                    direction  ^^direction
+                   orientation (list
+                                  (translate !direction :distance (nth 0 !constraint-variable)) 
+                                  )
+;;;                    )
+               )
+  
+  )
+
+
+
+
+(define-class prismatic-constraint-class
+  :inherit-from (master-joint-model)
+  :properties (
+;;;                joint-variables 's
+               ;;;                to element
+;;;                (temp-element :class 'vector-data-model
+;;;                    point-ref  ^^point-ref
+;;;                    direction  ^^direction
+                   orientation (list
+                                  (translate !direction :distance (nth 0 !constraint-variable)) 
+                                  )
+;;;                    )
+               )
+  )
+
+(define-class cylindric-constraint-class
+  :inherit-from (master-joint-model)
+  :properties (
+;;;                joint-variables 'theta and 's
+               ;;;                to element
+;;;                (temp-element :class 'vector-data-model
+;;;                    point-ref  ^^point-ref
+;;;                    direction  ^^direction
+                   orientation (list
+                                  (translate !direction :distance (nth 0 !constraint-variable)) 
+                                  )
+;;;                    )
+               )
+  )
+
+(define-class planar-constraint-class
+  :inherit-from (master-joint-model)
+  :properties (
+;;;                joint-variables 's, s' and  theta
+ 
+;;;                (temp-element :class 'vector-data-model
+;;;                    orientation (list
+;;;                                 (translate
+;;;                                  (angle-between-2-vectors (the superior solid-element direction) (nth 0 ^^constraint-variable) )
+;;;                                  (cross-product (the superior solid-element direction)  (nth 0 ^^constraint-variable) )
+;;;                                  :axis-point (the coordinates (:from (the superior solid-element point-ref)) )
+;;;                                  )
+;;;                                 )
+;;;                    )
+               )
+  )
+
+(define-class revolute-constraint-class
+  :inherit-from (master-joint-model)
+  :properties (
+               diameter 0
+               ;;; dimensions to make sure connected joints match
+;;;                diameter 0
+;;;                joint-variables 'theta
+               )
+  )
+
+
+(define-class revolute-male-element
+  :inherit-from (joint-element-model)
+  :properties (
+               union-list (when (and (plusp ^max-width) (plusp ^max-height) )
+                            (list ^imprinted-pin ^eye)
+                            )
+;;;                union-list (list ^pin ^eye)
+               object-list (list ^imprinted-pin ^eye)
+               simplify? nil
+;;;                reference-object (the superior superior)
+               (imprinted-pin :class '(tagging-object geometry-with-split-periodic-faces-class)
+                   source-object ^^pin
+                   tag-dimensions '(1 2 3)
+                   tag-attributes (list ^^max-element-size .1
+                                        0 0.1 0 20.0 1.0e-5)
+                   )
+               
+               (pin :class 'cylinder-object
+                   reference-object ^main-frame
+                   height (* 2 ^^max-height ^^scale-factor)
+                   diameter (/ ^^max-width 2)
+                   orientation (list
+                                (translate (list 0 0 (- (/ ^height 4)) ) )
+                                )
+                   )
+               (eye :class '(tagging-object cylinder-object)
+                   tag-dimensions '(1 2 3)
+                   tag-attributes (list ^^max-element-size .1
+                                        0 0.1 0 20.0 1.0e-5)
+                   reference-object ^sub-frame
+                   height ^^max-height
+                   diameter ^^max-width
+;;;                    orientation (list
+;;;                                 (translate (list 0 0 0) )
+;;;                                 )
+                   )
+               (sub-point-ref :class 'sub-point-model
+                   orientation (list
+                                (translate (list 0 0 (/ (- ^^max-height) 1) ))
+                                )
+                   )
+               )
+  :subobjects (
+
+               (mating-surface-nodes :class 'mesh-nodes-query-class
+                   tagged-object-list (list ^^imprinted-pin)
+                   mesh-object (the link-mesh (:from (the link-mesh-model (:from ^link-ref-incident-on-constraint))))
+                   color 'green
+                   )
+               )
+  )
+(define-class revolute-female-element
+  :inherit-from (difference-object joint-element-model)
+  :properties(
+              union-list (when (and (plusp ^max-width) (plusp ^max-height) )
+                           (list ^fork)
+                           )
+              difference-list (when (and (plusp ^max-width) (plusp ^max-height) )
+                                (list ^imprinted-pin-hole)
+                                )
+              object-list (list ^fork ^imprinted-pin-hole)
+;;;                reference-object (the superior superior)
+
+               (imprinted-pin-hole :class '(tagging-object geometry-with-split-periodic-faces-class)
+                   source-object ^^pin-hole
+                   tag-dimensions '(1 2 3)
+                   tag-attributes (list ^^max-element-size .1
+                                        0 0.1 0 20.0 1.0e-5)
+                   )
+               
+               (pin-hole :class 'cylinder-object
+                   reference-object ^main-frame
+                   height (* 4 ^^max-height ^^scale-factor)
+                   diameter (/ ^^max-width 2)
+;;;                    orientation (list
+;;;                                 (translate (list 0 0 (/ ^height 4)))
+;;;                                 )
+                   )
+                              
+               (fork :class '(tagging-object cylinder-object)
+                   tag-dimensions '(1 2 3)
+                   tag-attributes (list ^^max-element-size .1
+                                        0 0.1 0 20.0 1.0e-5)
+                   reference-object ^sub-frame
+                   height ^^max-height
+                   diameter ^^max-width
+;;;                    orientation (list
+;;;                                 (translate (list 0 0 (* ^height ^^scale-factor) ))
+;;;                                 )
+                   )
+
+               (sub-point-ref :class 'sub-point-model
+;;;                    orientation (list
+;;;                                 (translate (list 0 0 (/ ^^max-height 2) ))
+;;;                                 )
+                   )
+               )
+  :subobjects (
+              
+               (mating-surface-nodes :class 'mesh-nodes-query-class
+                   tagged-object-list (list ^^imprinted-pin-hole)
+                   mesh-object (the link-mesh (:from (the link-mesh-model (:from ^link-ref-incident-on-constraint))))
+                   color 'green
+                   )
+               )
+  )
+
+
+(define-class spheric-constraint-class
+  :inherit-from (master-joint-model)
+  :properties (
+
+;;;                joint-variables 'theta, theta' and  theta''
+               ;;;                to element
+;;;                (temp-element :class 'vector-data-model
+;;;                    point-ref  ^^point-ref
+;;;                    direction  ^^direction
+                   orientation (list
+                                (rotate
+                                 (angle-between-2-vectors ^direction (nth 0 ^constraint-variable) )
+                                 (cross-product ^direction (nth 0 ^constraint-variable) )
+                                 :axis-point (the coordinates (:from ^point-ref) )
+                                 )
+                                )
+;;;                    )
+               )
+  )
+
+(define-class spheric-male-element
+  :inherit-from (union-object joint-element-model)
+  :properties (
+               tag-dimensions '(1 2 3)
+               tag-attributes (list ^^max-element-size .1
+                                    0 0.1 0 20.0 1.0e-5)
+               union-list (when (and (plusp ^max-width) (plusp ^max-height) )
+                            (list ^imprinted-stud ^imprinted-ball ^plate)
+                            )
+               object-list (list ^imprinted-stud ^imprinted-ball ^plate)
+
+               (imprinted-stud :class '(tagging-object geometry-with-split-periodic-faces-class)
+                   source-object ^^stud
+                   tag-dimensions '(1 2 3)
+                   tag-attributes (list ^^max-element-size .1
+                                        0 0.1 0 20.0 1.0e-5)
+                   )
+               (stud :class 'cylinder-object
+                   reference-object ^sub-frame
+                   height (vector-length (subtract-vectors (the origin (:from ^sub-frame)) (the origin (:from ^main-frame)) ) )
+                   diameter (/ (the diameter (:from ^ball)) 2)
+                   orientation (list
+                                (translate (list 0 0 (/ ^height 2)) )
+                                )
+                   )
+               (imprinted-ball :class '(tagging-object geometry-with-split-periodic-faces-class)
+                   source-object ^^ball
+                   tag-dimensions '(1 2 3)
+                   tag-attributes (list ^^max-element-size .1
+                                        0 0.1 0 20.0 1.0e-5)
+                   )
+               (ball :class 'sphere-object
+                   reference-object ^main-frame
+                   diameter (* 3 (/ ^^max-width 4))
+                   )
+               (plate :class '(tagging-object cylinder-object)
+                   tag-dimensions '(1 2 3)
+                   tag-attributes (list ^^max-element-size .1
+                                        0 0.1 0 20.0 1.0e-5)
+                   reference-object ^^sub-frame
+                   diameter ^^max-width
+                   height ^^max-height
+                   )
+
+               (sub-point-ref :class 'sub-point-model
+                   orientation (list
+                                (translate (list 0 0  (- 0 (/ ^^max-height 2) (* 1 (the diameter (:from ^^ball))) )) )
+                                )
+                   )
+               )
+  :subobjects (
+;;;                (sub-frame :class 'frame-data-model
+;;;                    reference-object ^^main-frame
+;;;                    point-ref (the point-default (:from ^z-vector-ref))
+ 
+               (mating-surface-nodes :class 'mesh-nodes-query-class
+                   tagged-object-list (list ^^imprinted-ball)
+                   mesh-object (the link-mesh (:from (the link-mesh-model (:from ^link-ref-incident-on-constraint))))
+                   color 'green
+                   )               
+               )
+  )
+
+(define-class spheric-female-element
+  :inherit-from (difference-object joint-element-model)
+  :properties (
+               union-list (when (and (plusp ^max-width) (plusp ^max-height) )
+                            (list ^imprinted-socket)
+                            )
+               difference-list (when (and (plusp ^max-width) (plusp ^max-height) )
+                                 (list ^imprinted-hole)
+                                 )
+               object-list (list ^imprinted-socket ^imprinted-hole)
+
+               (imprinted-hole :class '(tagging-object geometry-with-split-periodic-faces-class)
+                   source-object ^^hole
+                   tag-dimensions '(1 2 3)
+                   tag-attributes (list ^^max-element-size .1
+                                        0 0.1 0 20.0 1.0e-5)
+                   )
+               (hole :class 'sphere-object
+                   reference-object ^sub-frame
+                   diameter (* 3 (/ ^^max-width 4))
+                   )
+               (imprinted-socket :class '(tagging-object geometry-with-split-periodic-faces-class)
+                   source-object ^^socket
+                   tag-dimensions '(1 2 3)
+                   tag-attributes (list ^^max-element-size .1
+                                        0 0.1 0 20.0 1.0e-5)
+                   )
+                             
+               (socket :class 'intersection-object
+                   object-list (list ^sphere ^cyl)
+                   reference-object ^sub-frame
+                   )
+
+               (sphere :class 'sphere-object
+                   diameter ^^max-width
+                   )
+
+               (cyl :class 'cylinder-object
+                   height ^^max-height
+                   diameter ^^max-width             
+                   )
+               )
+  :subobjects (
+               (mating-surface-nodes :class 'mesh-nodes-query-class
+                   tagged-object-list (list ^^imprinted-hole)
+                   mesh-object (the link-mesh (:from (the link-mesh-model (:from ^link-ref-incident-on-constraint))))
+                   color 'green
+                   )
+               )
+  )
+
+
+(define-class solid-knuckle90-male-constraint
+  :inherit-from (union-object joint-element-model)
+  :properties (
+               union-list (when (and (plusp ^max-width) (plusp ^max-height) )
+                            (list !superior)
+                            )
+;;;                union-list (list ^pin ^eye)
+               object-list (list ^imprinted-pin ^eye)
+               simplify? t
+;;;                reference-object (the superior superior)
+               (imprinted-pin :class '(tagging-object geometry-with-split-periodic-faces-class)
+                   source-object ^^pin
+                   tag-dimensions '(1 2 3)
+                   tag-attributes (list ^^max-element-size .1
+                                        0 0.1 0 20.0 1.0e-5)
+                   )
+                   
+               (pin :class 'cylinder-object
+                   reference-object ^main-frame
+                   diameter (* 2 ^^max-height ^^scale-factor)
+                   height (/ ^^max-width 2)
+;;;                    orientation (list
+;;;                                 (translate (list 0 0 (/ ^height 4)) )
+;;;                                 )
+                   )
+               (eye :class '(tagging-object cylinder-object)
+                   tag-dimensions '(1 2 3)
+                   tag-attributes (list ^^max-element-size .1
+                                        0 0.1 0 20.0 1.0e-5)
+                   reference-object ^sub-frame
+                   diameter ^^max-height
+                   height ^^max-width
+;;;                    orientation (list
+;;;                                 (translate (list 0 0 0) )
+;;;                                 )
+                   )
+               
+                )
+  :subobjects (
+               (sub-frame :class 'frame-data-model
+                   reference-object ^^main-frame
+                   point-ref (the point-default (:from ^z-vector-ref))
+                   orientation (list
+                                (translate (list 0 0 (/ (- ^^max-height) 2) ))
+                                )
+                   )
+               (mating-surface-nodes :class 'mesh-nodes-query-class
+                   tagged-object-list (list ^^imprinted-pin)
+                   mesh-object (the link-mesh (:from (the link-mesh-model (:from ^link-ref-incident-on-constraint))))
+                   color 'green
+                   )
+               )
+  )
+;;; -----------------------------
+;;; END CONSTRAINT DEFINITIONS
+;;; -----------------------------

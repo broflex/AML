@@ -1,0 +1,192 @@
+(define-class constraint-model
+  :inherit-from (object)
+  :properties(
+              point-ref nil
+              direction nil
+              constraint-type nil
+              link-incidence nil
+              constraint-variable nil
+              ;; to make sure solid and hollow shares the same dimension
+              width 0 
+              height 0
+              sweeps-on-constraint (list )
+
+              element-ref-list (children !superior :class 'vector-data-model)
+              (temp-element :class 'vector-data-model
+                  )
+              )
+  :subobjects (
+;;;                from element
+               (male-connector-element :class 'vector-data-model
+                   )
+               ;;; to element
+               (female-connector-element :class 'vector-data-model
+                   (point-ref :class 'point-data-model
+                              coordinates (convert-coords
+                                           ^^temp-element
+                                           (the superior superior temp-element base-point)
+                                           :from :local
+                                           :to :global
+                                           )
+                              )
+                   
+                   direction (convert-vector ^^temp-element '(0 0 1) :from :local :to :global)
+                   color 'red
+                   )
+               )
+  )
+
+
+(define-class link-data-model
+  :inherit-from (series-object)
+  :properties (
+               ;; properties set from parent init-form
+               constraint-incidence nil
+               link-index nil
+               
+               num-j (length ^constraint-incidence)
+               number-of-paths (/ (- (* ^num-j ^num-j ) ^num-j) 2)
+               
+               quantity ^number-of-paths
+               class-expression 'su-parameters
+               series-prefix 'su
+               init-form '(
+                           su-index (let (
+                                       (f-var (floor (/ (- 1 (sqrt (+ 1 (* 8 (- ^^number-of-paths ^index) ) ) ) ) 2) ) )
+                                       (pd1-index (1- (+ ^^num-j f-var) ) )
+                                       (pd2-index (- (+ ^index ^^num-j) (-  (/ (- (* ^^num-j ^^num-j ) ^^num-j ) 2) (/ (+ (* f-var f-var ) f-var) 2) ) ))
+                                       )
+                                   (list pd1-index pd2-index)
+                                   )
+                           z-vector_A-ref (nth
+                                           (position ^^link-index (the link-incidence (:from (nth (nth 0 ^su-index) ^^constraint-incidence))) )
+                                           (children (nth (nth 0 ^su-index) ^^constraint-incidence))
+                                           )
+                           z-vector_D-ref (nth
+                                           (position ^^link-index (the link-incidence (:from (nth (nth 1 ^su-index) ^^constraint-incidence))) )
+                                           (children (nth (nth 1 ^su-index) ^^constraint-incidence))
+                                           )
+                           
+                           )
+               ;; (position 'b '(a b c d)) 
+               )
+  :subobjects (
+               (solid-surface :class 'surface-solid-model
+
+                   )
+                   
+                   
+;;;                (su-parameters :class 'su-object-collection
+;;;                    point-on-link-ref nil
+;;;                    constraint-on-link-ref ^^constraint-incidence
+;;;                    )
+               )
+  )
+
+
+(define-class surface-solid-model
+  :inherit-from (surface-thickened-class)
+  :properties (
+               spline-curves (select-object :from (the superior superior) :class 'su-parameters )
+               source-object (if (= 3 (length ^spline-curves )) ^surface nil)
+ 
+               )
+  :subobjects (
+               (sweeps :class 'sweep-model
+                   )
+               
+               (surface :class 'surface-from-three-edge-curves-class
+                   display? nil
+                   edge-1-object (the spline (:from (nth 0 ^^spline-curves)) )
+                   edge-2-object (the spline (:from (nth 1 ^^spline-curves)) )
+                   edge-3-object (the spline (:from (nth 2 ^^spline-curves)) )
+                   )
+               )
+  )
+
+
+
+(define-class SU-parameters
+  :inherit-from (general-sweep-class)
+  :properties (
+               su-index nil
+
+               z-vector_A-ref nil
+               z-vector_D-ref nil
+               
+               line-config (line-pose (the superior))
+               inter_points (inter_section (the superior) ^line-config )
+               perpendicular-dir (perp-dir (the superior) ^line-config )
+
+
+;;;                sweep parameters
+               path-object (the superior spline)
+               swept-object (the superior frame_A cross-section)
+               start-point (the coordinates (:from (the point-ref (:from (the superior frame_A)))) )
+               tangential-sweep? t
+               render 'shaded
+               
+               )
+  :subobjects (
+               (spline :class 'curve-from-points-spline-class
+;;;                spline parameters
+                   points-coordinates-list (list
+                                            (the coordinates (:from (the point-ref (:from (the frame_A)) )) )
+                                            (the coordinates (:from (the point-ref (:from (the frame_D)) )) )
+                                            )
+                   derivs-list (list
+                                (multiply-vector-by-scalar
+                                 (convert-coords (the frame_A cross-section) '(0 0 1))
+                                 (the frame_A derivs-magnitude)
+                                 )
+                                (multiply-vector-by-scalar
+                                 (convert-coords (the frame_D cross-section) '(0 0 1))
+                                 (the frame_D derivs-magnitude)
+                                 )
+                                )
+                   )
+               
+               (frame_A :class 'cross-section-frame
+                   point-ref (the point-ref (:from (the superior z-vector_A-ref)))
+                   z-vector-ref ^^z-vector_A-ref
+                   (x-vector-ref :class 'vector-data-model
+                                 direction ^^perpendicular-dir 
+                                 )
+;;;                    orientation (trace-from (the z-vector-ref) '(get-formula (the orientation self (:from (the z-vector-ref )) )) )
+                   )
+               
+               (frame_D :class 'cross-section-frame
+                   point-ref (the point-ref (:from (the superior z-vector_D-ref)) )
+                   z-vector-ref ^^z-vector_D-ref
+                   (x-vector-ref :class 'vector-data-model
+                                  direction ^^perpendicular-dir
+                                  )
+;;;                    orientation (trace-from (the z-vector-ref) '(get-formula (the orientation self (:from (the z-vector-ref )) )) )
+                   )
+
+               (frame_B :class 'frame-data-model
+                   (point-ref :class 'point-data-model
+                              coordinates (nth 0 ^^inter_points)
+                              )
+                   (z-vector-ref :class 'vector-data-model
+                                 direction (the direction (:from (the superior z-vector_A-ref)) )
+                                 )
+                   (x-vector-ref :class 'vector-data-model
+                                 direction ^^perpendicular-dir 
+                                 )
+                   )
+               
+               (frame_C :class 'frame-data-model
+                   (point-ref :class 'point-data-model
+                               coordinates (nth 1 ^^inter_points)
+                               )
+                   (z-vector-ref :class 'vector-data-model
+                                  direction (the direction (:from (the superior z-vector_D-ref)) )
+                                  )
+                   (x-vector-ref :class 'vector-data-model
+                                  direction ^^perpendicular-dir 
+                                  )
+                   )
+               
+               )
+  )
