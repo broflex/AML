@@ -20,7 +20,7 @@
 		 ;The probe-file function is used to check if a file exists. It returns nil if the file specified does not exist
          (probe-file file-path)
          )
-		 ;opens the specified file
+		 ;opens the specified file. the file is opened as a stream and can be accessed using functions like read, read-line etc.
         (with-open-file (file file-path :direction :input)
 		;calls the function specified from the file-name
           (apply function-name (list file))
@@ -45,12 +45,14 @@
                collection-type 'constraints
                constraint-list (read-from-file !superior)
                quantity (length ^constraint-list)
+			   ;class-expression determines which classes to create as subobjects
                class-expression '(read-from-string (concatenate (nth 1 (nth !index !constraint-list)) "-constraint-class"))
                series-prefix 'c
                init-form '(
                            point-ref (nth (nth 0 (nth !index ^constraint-list)) ^point-ref-list)
                            constraint-type (nth 1 (nth !index ^constraint-list))
                            link-incidence (nth 2 (nth !index ^constraint-list))
+						   ;normalize returns the unit vector with the same orientation as the specified vector
                            direction (normalize (nth 3 (nth !index ^constraint-list)))
                            constraint-variable (nth 4 (nth !index ^constraint-list))
                            )
@@ -76,7 +78,6 @@
 (define-class point-collection
   :inherit-from (series-object collection-class)
   :properties (
-;;;                points-list (FORMATTED-list-FROM-FILE (logical-path MECHANISM-LIBRARY "coordinates.txt") :element-format '(x y z))
                collection-type 'coordinates
                points-list (read-from-file !superior)
                quantity (length ^points-list)
@@ -89,7 +90,6 @@
   )
 
 (defun read-coordinates-from-file (stream)
-;;;   (with-open-file (file (logical-path (the path (:from (the superior mechanism-selection)) ) "coordinates.txt") :direction :input)
   (when stream
     (loop for line = (read-line stream nil :eof)
       until (equal line :eof)
@@ -114,7 +114,6 @@
 (define-class shape-collection
   :inherit-from (series-object collection-class)
   :properties (
-;;;                points-list (FORMATTED-list-FROM-FILE (logical-path MECHANISM-LIBRARY "coordinates.txt") :element-format '(x y z))
                collection-type 'shapes
                shapes-list (read-from-file !superior)
                quantity (length ^shapes-list)
