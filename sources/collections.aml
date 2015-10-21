@@ -1,3 +1,4 @@
+;;; Constructs the collecion-class
 (define-class collection-class
   :inherit-from (object)
   :properties (
@@ -6,6 +7,7 @@
   )
 
 
+;;; Checks if file is accessible and executes the corresponding read method
 (define-method read-from-file collection-class ()
   (let (	
         (file-name (write-to-string !collection-type ))
@@ -34,7 +36,7 @@
     )
   )
     
-;;; Constraint collection 
+;;; Executes the read-from-file and creates the corresponding subobjects for the constraints/joints
 (define-class constraint-collection
 	;series-object creates "automatically" any specified number(denoted by quantity) of subobjects, they are created from the init-form
 	;can be found at page 291 in ref. manual
@@ -59,6 +61,7 @@
                )
   )
 
+;;; Reads each line of the constraints file and adds this to a list 
 (defun read-constraints-from-file (stream)
   (when stream
     (loop for line = (read-line stream nil :eof)
@@ -73,8 +76,7 @@
   )
 
 
-
-
+;;; Executes the read-from-file and creates the corresponding subobjects for the points/coordinates
 (define-class point-collection
   :inherit-from (series-object collection-class)
   :properties (
@@ -88,7 +90,7 @@
                            )
                )
   )
-
+;;; Reads each line of the coordinats file and adds this to a list 
 (defun read-coordinates-from-file (stream)
   (when stream
     (loop for line = (read-line stream nil :eof)
@@ -99,9 +101,11 @@
     )
   )
 
+;;; Defines the default properties of each shape/link
 (define-class shape-data-model
   :inherit-from (object)
   :properties (
+				
                link-ref (default 'default)
                sweep-index (default 'default)
                cross-section-type (read-from-string (remove "-section" (write-to-string (default 'circular-section))))
@@ -110,7 +114,7 @@
                weight-list nil
                )
   )
-
+;;; Executes the read-from-file and creates the corresponding subobjects for the shapes/links
 (define-class shape-collection
   :inherit-from (series-object collection-class)
   :properties (
@@ -130,9 +134,8 @@
                )
   )
 
-;;; link-index	sweep-index	cross-section-type	(dimensions)	(points list)	(weight-list)	degree	(knot-list)
+;;; Reads each line of the shapes file and adds this to a list 
 (defun read-shapes-from-file (stream)
-;;;   (with-open-file (file (logical-path (the path (:from ^mechanism-selection) ) "shapes.txt") :direction :input)
  (when stream
    (loop for line = (read-line stream  nil :eof)
      until (equal line :eof)
@@ -145,9 +148,11 @@
    )
  )
 
+;;; Creates some UI elements and link subobjects
 (define-class link-collection
   :inherit-from (series-object)
   :properties (
+				;creates the select cross-section-type dropdown menu
                (cross-section-type :class 'option-property-class
                    label "Cross-section Type"
                    mode 'menu
@@ -159,6 +164,7 @@
                    )
                common-width 0.04
                common-height 0.04
+			   ;creates the set cross-sections and dimensions buttons
                property-objects-list (list
                                       (the superior cross-section-type self) 
                                       '("Set all cross-sections" (button1-parameters :set-c button3-parameters :unset)
@@ -170,17 +176,17 @@
                                         ui-work-area-action-button-class)
                                       )
                ;;Traverse to Superior reference
-;;;                point-ref-list nil
-;;;                constraints-ref-list nil
+			   ;; Creates a sorted list of all the links involved in the link-incidence of the constraints
                link-list (sort (copy-seq (remove-duplicates (append-list (loop for kid in (the constraints-ref-list) 
                                                                  collect (the link-incidence (:from kid)) 
                                                                  )
                                                                ))
                                         ) '<)
- 
+				;initializes the shape-data-model
                (init-default-shape :class 'shape-data-model
                    )
                
+			   ;dunno what does yet
                default-shape (let(
                                   (def (loop for shape in (children ^^shapes :class 'shape-data-model)
                                          when (equal 'default (the link-ref (:from shape)))
@@ -191,7 +197,6 @@
                                )
                
                quantity (length ^link-list)
-;;;                class-expression 'link-data-model
                class-expression 'link-model-class
                series-prefix 'link
                init-form '(
@@ -200,15 +205,17 @@
                                                                for con = (get-constraint-incidence kid ^link-index)
                                                                when con collect con
                                                                )
-;;;                            constraints-incident-on-link-list (select-object :from (the superior superior constraints) :class 'constraint-model :test '(member (nth ^index ^^link-list) (the link-incidence)))
                            )
                )
   )
 
+;;; Gets the link reference from a link-collection       !!!!!!!  IS NEVER CALLED ??  !!!!!!!!!!
 (define-method get-link-ref link-collection (link-index)
   (nth (position link-index !link-list) ^link-ref-list)
   )
   
+
+;;; Implements the logic behind the buttons for setting cross-section-type and setting dimensions
 (define-method work-area-button1-action link-collection (params)
   (case params
     (:set-c
@@ -229,6 +236,7 @@
     )
   )
 
+;;; Defines the model for subfolders
 (define-class folder-info-model
   :inherit-from (object)
   :properties (
@@ -245,6 +253,7 @@
                             )
                )
   )
+;;; Creates subfolders as subobjects of the folder-collection of type folder-info-model  
 (define-class folder-collection
   :inherit-from (series-object)
   :properties (
@@ -261,6 +270,7 @@
   )
 
 
+;;; Creates the different collections (constraint, point, link, shape and meshdb) as subobjects and categorizes in subfolders
 (define-class mechanism-collection
   :inherit-from (data-model-node-mixin)
   :properties (
@@ -273,7 +283,6 @@
                                 when (the path (:from subfolder))
                                 collect (the label (:from subfolder))
                                 )
-;;;                    labels-list (select-object :from ^folders :class 'folder-info-model :test '(the path) :eval '(the label) )
                    options-list (children ^folders :class 'folder-info-model)
                    
                    mode 'menu
@@ -285,31 +294,25 @@
                                             '(automatic-apply? t))
                                      )
 ;;;                Storage
-               
-               ;;Property storing folder from library
                (folders :class 'folder-collection
                    )
 
                write-to-file (write-save-fedem-solver !superior)
                )
   :subobjects (
-
-               
                (constraints :class 'constraint-collection
                    )
                (points :class 'point-collection
                    )
                (links :class 'link-collection
                    )
-
                (shapes :class 'shape-collection
                    )
-               
                (mesh-database :class 'meshdb-class
                    )
                )
   )
-
+;;; Writes the mechanism to a simulation file (.fsi)
 (define-method write-save-fedem-solver  mechanism-collection ()
   (let (
         (idcount 10)
@@ -353,7 +356,6 @@
         (setf extidcount 0)
         (loop for link in !link-ref-list
           for id = (the index (:from link))
-;;;           from 0 to (1- (length !link-ref-list))
           for triader = (nth id triads)
           for frame =  (vector-to-list (get-position-matrix (the main-frame (:from (nth 0 (the solid-constraints-ref-list (:from link)))) ) ) )
           when (not (equal 0 id ) )
@@ -378,17 +380,12 @@
           (print (the solid-constraints-ref-list (:from link)) )
           (loop for triad in (the solid-constraints-ref-list (:from link))
             for i = (the index (:from triad) )
-;;;             for un_frame = (vector-to-list (matrix-multiply (get-position-matrix (the main-frame (:from triad))) (matrix-inverse frame) ))
             do
             (print i)
             (print triader)
             (format stream "~a~%" "&TRIAD_UNDPOS")
             (format stream "~t supElId = ~d~%" idcount)
             (format stream "~t triadId = ~d~%" (nth i triader) )
-;;;             (format stream "~t undPosInSupElSystem = ~{~{~1,9e ~}~%~6t ~}"  (list (append (subseq un_frame 0 3) (list (nth 12 un_frame)))
-;;;                                                                                   (append (subseq un_frame 4 7) (list (nth 13 un_frame)))
-;;;                                                                                   (append (subseq un_frame 8 11) (list (nth 14 un_frame)))
-;;;                                                                                   ) )
             (format stream "~%/~2%")
            )
           )
