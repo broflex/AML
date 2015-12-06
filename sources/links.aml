@@ -7,6 +7,8 @@
           )
      )
    )
+
+;Returns possible connections between joints list list, or p joints
 (defun list-combinations (p)
   (let (
         (l (if (typep p 'list) p (if (typep p 'fixnum) (loop for i from 0 to (1- p) collect i) (list ) ) ) )
@@ -34,6 +36,7 @@
     )
   )
 
+  
 (defun sweep-loop-combinations (n)
   (let (
         (c-loops (3-edge-loop-combinations n) )
@@ -48,11 +51,13 @@
     )
   )
 
+; Binomial: C(n,3) = 3! / ( 3! (n - 3)! 
+; Output: List unique combinations of three, given n numbers
 (defun 3-edge-loop-combinations (n)
    (loop for i from 0 to (- n 3)   
      append (loop for j from (1+ i) to (- n 2)
               append (loop for k from (1+ j) to (1- n)
-                       collect (list i j k)                   
+                       collect (list i j k)
                        )
               )
      )
@@ -91,7 +96,12 @@
                    )
                edge-combination nil
                source-object ^surface
-               ;;surface thickness 20% of smalles cross-section height
+			   ;source-object (with-error-handler (:error-function 'error-recovery-function
+				;										:error-function-argument (root-object)
+				;										)
+				;										^surface
+				;										)
+               ;;surface thickness 20% of smallest cross-section height
                thickness (* 0.2 (loop for i in ^edge-combination
                            minimize (max-height (the cross-section_D (:from (nth i ^members-ref-list))))
                            ))
@@ -108,6 +118,7 @@
                )
   :subobjects (
                (surface :class 'surface-from-three-edge-curves-class
+			       ;connection is a nurb-curve-object
                    edge-1-object (the connection (:from (nth (nth 0 ^edge-combination) ^members-ref-list)) )
                    edge-2-object (the connection (:from (nth (nth 1 ^edge-combination) ^members-ref-list)) )
                    edge-3-object (the connection (:from (nth (nth 2 ^edge-combination) ^members-ref-list)) )
@@ -115,6 +126,17 @@
                )
   )
 
+(define-method error-recovery-method surface-data-model ()
+	(message (format nil "The object ~a is recovering from its last error"
+		(object-name self)))
+	nil
+ )
+ 
+(defun error-recovery-function (object system-error-message)
+	(message system-error-message)
+	(error-recovery-method object)
+ ) 
+  
 (define-class surfaces-on-link-collection
   :inherit-from (series-object)
   :properties (
@@ -134,7 +156,7 @@
                )
   )
 
-        
+ 
 
 ;;; -----------------------------
 ;;; Sheth-Uicker DEFINITIONS
@@ -318,8 +340,8 @@
 (define-method inter_section connection-model (line-config)
    (case line-config
      ('skew
-      (list (cl-point !pij !wij !pjk !wjk) (cl-point !pjk !wjk !pij !wij) )
       )
+      (list (cl-point !pij !wij !pjk !wjk) (cl-point !pjk !wjk !pij !wij) )
      ('intersecting
       (list (cl-point !pij !wij !pjk !wjk) (cl-point !pjk !wjk !pij !wij) )
       )
@@ -498,6 +520,9 @@
      )
     )
   )
+
+
+  
 (define-method work-area-button3-action member-solid-model (params)
   (case params
     (:draw
@@ -522,7 +547,7 @@
                series-prefix 'member
                init-form '(
                            connection-between-constraints (nth ^index ^^connection-between-2-constraints-combinations)
-                                                          
+
                            shape-ref (nth ^index ^^shapes-on-link)
                            
                            )
@@ -534,9 +559,22 @@
 ;;;   :inherit-from (tagging-object difference-object)
   :inherit-from (tagging-object geometry-with-split-periodic-faces-class)
   :properties (
+			   property-objects-list (list
+										"Link sewn with incident joint element"
+										'("Draw" (button1-parameters :draw-sewn-geometry)
+                                        ui-work-area-action-button-class)
+										'("Draw with mesh" (button1-parameters :draw-with-mesh)
+                                        ui-work-area-action-button-class)
+										'("Undraw" (button1-parameters :undraw-sewn)
+                                        ui-work-area-action-button-class)
+										)
                ;;used for geometry-with-split-periodic-faces-clas
                source-object ^difference-element
                
+			   ;(max-width :class 'editable-data-property-class
+				;	formula ()
+				;)
+			   
                max-element-size 0.005
                tag-dimensions '(1 2)
                tag-attributes (list ^max-element-size .1
@@ -569,11 +607,14 @@
 
 ;;;                combination-on-constraint (connections-on-constraints (length ^constraints-incident-on-link-list))
                
-               surfaces-ref-list (children ^surfaces :class 'surface-data-model :test '(and !geom !display?))
-               ;; only include sweeps which are not "turned off"
+               surfaces-ref-list (children ^surfaces :class 'surface-data-model :test '(and !geom !display?))		
+			   ;; only include sweeps which are not "turned off"
                members-ref-list (children ^sweeps :class 'member-solid-model)
                visible-members-ref-list (children ^sweeps :class 'member-solid-model :test '!display?)
-               
+			   ;mating-surface-list (loop for c in ^constraints-incident-on-link-list
+				;						append (the mating-surface-nodes (:from c))
+				;						)
+               ;mating-surface-list (the mating-surface-nodes (:from (the male-element-solid-model (:from (nth 0 ^constraints-incident-on-link-list)))))
 ;;;                solid-constraints-ref-list (children ^solid-constraints :class 'solid-constraint-model)
                
                union-list (loop for l in ^constraints-incident-on-link-list
@@ -634,6 +675,24 @@
                    )
                )
   )
+  
+(define-method work-area-button1-action link-geometry-class (params)
+  (case params
+    (:draw-sewn-geometry
+     (draw self :draw-subobjects? nil)
+     )
+    (:undraw-sewn
+     (undraw self :subobjects? t)
+	 (undraw (the superior link-mesh-model))
+     )
+	(:draw-with-mesh
+		(draw self :draw-subobjects? nil)
+		(with-error-handler (:show-system-error? t)
+			(draw (the superior link-mesh-model))
+		)
+	 )
+    )
+  )  
 
 (define-class link-model-class
   :inherit-from (object)
@@ -642,7 +701,7 @@
                constraints-incident-on-link-list nil
                connection-between-2-constraints-combinations (list-combinations ^constraints-incident-on-link-list)
                link-index nil
-               
+			   
                )
   :subobjects (
                (link-solid-geometry :class 'link-geometry-class

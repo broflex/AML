@@ -4,7 +4,7 @@
   :inherit-from (point-object data-model-node-mixin)
   :properties (
                (coordinates :class 'editable-data-property-class
-;;;                    label "Coordinates" 
+                    label "Coordinates"
 ;;;                    formula '(0 0 0)
                    )
 
@@ -22,10 +22,11 @@
                ;;superior reference traverse
                point-ref (default ^point-default)
                (point-default :class 'point-data-model
+                   ;A label here does not affect GUI
                    coordinates '(0 0 0)
                    )
                (direction :class 'editable-data-property-class
-;;;                    label "Direction" 
+                   label "Direction"
                    formula (default)
                    )
                length 0.2
@@ -47,7 +48,7 @@
 
 ;; Frame, coordinate system
 (define-class frame-data-model
-  :inherit-from (coordinate-system-class data-model-node-mixin)
+  :inherit-from (coordinate-system-class)
   :properties (
                ;;traverse to superior reference
                point-ref (default (the point-default (:from ^z-vector-ref)) )
@@ -65,16 +66,20 @@
                vector-j (cross-product ^vector-k ^vector-i)
                length 0.1
                
-               property-objects-list (list 
-                                      (list  (the coordinates self (:from ^point-ref) ) 
+               property-objects-list (list
+                                      "Coordinates:"
+                                      (list  (the coordinates self (:from ^point-ref) )
                                             '(apply-formula? t))
-                                      (list (the direction self (:from ^z-vector-ref) ) 
+                                      "Z Axis:"
+                                      (list (the direction self (:from ^z-vector-ref) )
                                             '(apply-formula? t))
-                                      (list  (the direction self (:from ^x-vector-ref) ) 
+                                      "X Axis:"
+                                      (list  (the direction self (:from ^x-vector-ref) )    
                                             '(apply-formula? t))
                                       )
                )
   )
+
 
 ;;; (define-class su-vector-model
 ;;;   :inherit-from (vector-data-model)

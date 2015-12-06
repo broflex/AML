@@ -7,25 +7,19 @@
 
 
 (define-method read-from-file collection-class ()
-  (let (	
+  (let (
         (file-name (write-to-string !collection-type ))
         (file-path (logical-path (the path (:from ^mechanism-selection)) (concatenate file-name ".txt") ) )
-		(function-name (read-from-string (concatenate "read-" file-name "-from-file")) )
-        ) 
-	;if the file exists, open it and call it's read function, else return nil	
+        (function-name (read-from-string (concatenate "read-" file-name "-from-file")) )
+        )
     (if (and
          file-path
-		 ;The stringp function returns true if the given value is a string and nil if not. 
          (stringp file-path)
-		 ;The probe-file function is used to check if a file exists. It returns nil if the file specified does not exist
          (probe-file file-path)
          )
-		 ;opens the specified file
         (with-open-file (file file-path :direction :input)
-		;calls the function specified from the file-name
           (apply function-name (list file))
           )
-		;This construct groups a list of expressions by executing them sequentially and returning whatever the last expression of the group returns
       (progn
         (message (format nil "\"~a\" is not a valid file path." file-path) :append? t)
         nil
@@ -36,12 +30,18 @@
     
 ;;; Constraint collection 
 (define-class constraint-collection
-	;series-object creates "automatically" any specified number(denoted by quantity) of subobjects, they are created from the init-form
-	;can be found at page 291 in ref. manual
   :inherit-from (series-object collection-class)
   :properties (
                ;;Traverse to Superior reference
-				point-ref-list nil
+;;;                point-ref-list nil
+			   
+			   property-objects-list (list
+									  '("Draw/undraw all joints" (button1-parameters :draw-joints button3-parameters :undraw-joints)
+                                        ui-work-area-action-button-class)
+									  '("Draw/undraw all joints with mating nodes" (button1-parameters :draw-joints-mesh button3-parameters :undraw-joints)
+                                        ui-work-area-action-button-class)
+									  )
+					
                collection-type 'constraints
                constraint-list (read-from-file !superior)
                quantity (length ^constraint-list)
@@ -57,6 +57,62 @@
                )
   )
 
+(define-method work-area-button1-action constraint-collection (params)
+	(case params
+		(:draw-joints
+			(loop for constraint in ^constraints-ref-list
+				do 
+				(with-error-handler (:error-message (concatenate "Error drawing " (write-to-string (object-name constraint))) :show-system-error? nil)		
+					(let (
+							(male (the male-element-solid-model (:from constraint)))
+							(female (the female-element-solid-model (:from constraint)))
+						)
+						(progn
+							(change-value (the display? (:from (the joint-center-node (:from male)))) nil)
+							(change-value (the display? (:from (the joint-center-node (:from female)))) nil)
+							(change-value (the display? (:from (the mating-surface-nodes (:from male)))) nil)
+							(change-value (the display? (:from (the mating-surface-nodes (:from female)))) nil)
+						)
+					)
+				(draw constraint))
+			)
+		)
+		(:draw-joints-mesh
+			(loop for constraint in ^constraints-ref-list
+				do 
+				(with-error-handler (:error-message (concatenate "Error drawing " (write-to-string (object-name constraint))) :show-system-error? t)		
+					(let (
+							(male (the male-element-solid-model (:from constraint)))
+							(female (the female-element-solid-model (:from constraint)))
+						)
+						(progn
+							(change-value (the display? (:from (the joint-center-node (:from male)))) t)
+							(change-value (the display? (:from (the joint-center-node (:from female)))) t)
+							(change-value (the display? (:from (the mating-surface-nodes (:from male)))) t)
+							(change-value (the display? (:from (the mating-surface-nodes (:from female)))) t)
+						)
+					)
+				(draw constraint))
+			)
+		)
+		(:undraw-joints
+			(loop for constraint in ^constraints-ref-list
+				do (undraw constraint)
+			)
+		)
+	)  
+)
+  
+(define-method work-area-button3-action constraint-collection (params)
+  (case params
+    (:undraw-joints
+     (loop for constraint in ^constraints-ref-list
+		do (undraw constraint)
+       )
+     )
+    )
+  )
+  
 (defun read-constraints-from-file (stream)
   (when stream
     (loop for line = (read-line stream nil :eof)
@@ -153,6 +209,8 @@
                    label "Cross-section Type"
                    mode 'menu
                    formula (nth 0 !options-list)
+				   
+				   ;Returns all classes that inherits from section-model, i.e. all cross-sections
                    options-list (reverse (class-direct-defined-subclasses 'section-model))
                    labels-list (loop for option in !options-list
                                  collect (remove "-section" (write-to-string option))
@@ -161,15 +219,28 @@
                common-width 0.04
                common-height 0.04
                property-objects-list (list
-                                      (the superior cross-section-type self) 
-                                      '("Set all cross-sections" (button1-parameters :set-c button3-parameters :unset)
-                                        ui-work-area-action-button-class)
-
-                                      (the superior common-width self)
-                                      (the superior common-height self) 
-                                      '("Set all dimensions" (button1-parameters :set-d button3-parameters :unset)
-                                        ui-work-area-action-button-class)
-                                      )
+					(the superior cross-section-type self) 
+					'("Set all cross-sections" (button1-parameters :set-c button3-parameters :unset)
+					ui-work-area-action-button-class)
+					
+					(the superior common-width self)
+					(the superior common-height self) 
+					'("Set all dimensions" (button1-parameters :set-d button3-parameters :unset)
+					ui-work-area-action-button-class)
+					""
+					'("Draw all links" (button1-parameters :draw-without-mesh button3-parameters :draw-without-mesh)
+					ui-work-area-action-button-class)
+					'("Draw all links with mesh" (button1-parameters :draw-with-mesh button3-parameters :draw-with-mesh)
+					ui-work-area-action-button-class)
+					""
+					'("Draw all links with joints" (button1-parameters :draw-sewn-wo-mesh)
+					ui-work-area-action-button-class)
+					'("Draw all links with joints and mesh" (button1-parameters :draw-sewn-with-mesh)
+					ui-work-area-action-button-class)
+					""
+					'("Undraw all links" (button1-parameters :undraw button3-parameters :unset)
+					ui-work-area-action-button-class)
+				)
                ;;Traverse to Superior reference
 ;;;                point-ref-list nil
 ;;;                constraints-ref-list nil
@@ -192,7 +263,6 @@
                                )
                
                quantity (length ^link-list)
-;;;                class-expression 'link-data-model
                class-expression 'link-model-class
                series-prefix 'link
                init-form '(
@@ -211,24 +281,53 @@
   )
   
 (define-method work-area-button1-action link-collection (params)
-  (case params
-    (:set-c
-     (loop for l in ^link-ref-list
-       do (loop for s in (the members-ref-list (:from (the link-solid-geometry (:from l)) ))
-            do (change-value (the cross-section-type self (:from s)) !cross-section-type)
-            )
-       )
-     )
-    (:set-d
-     (loop for l in ^link-ref-list
-       do (loop for s in (the members-ref-list (:from (the link-solid-geometry (:from l)) ))
-            do (change-value (the width self (:from s)) !common-width)
-            (change-value (the height self (:from s)) !common-height)
-            )
-       )
-     )
-    )
-  )
+	(case params
+		(:set-c
+			(loop for l in ^link-ref-list
+				do (loop for s in (the members-ref-list (:from (the link-solid-geometry (:from l)) ))
+					do (change-value (the cross-section-type self (:from s)) !cross-section-type)
+				)
+			)
+		)
+		(:set-d
+			(loop for l in ^link-ref-list
+				do (loop for s in (the members-ref-list (:from (the link-solid-geometry (:from l)) ))
+					do (change-value (the width self (:from s)) !common-width)
+					(change-value (the height self (:from s)) !common-height)
+				)
+			)
+		)
+		(:draw-without-mesh
+			(loop for link in ^link-ref-list
+				do (loop for member in (the members-ref-list (:from (the link-solid-geometry (:from link)) ))
+					do (draw member :draw-subobjects? nil )
+				)
+			)
+		)
+		(:draw-sewn-wo-mesh
+			(loop for link in ^link-ref-list
+				do (with-error-handler (:error-message (concatenate "Error drawing "(write-to-string (object-name link))) :show-system-error? nil)
+					(draw (the link-solid-geometry (:from link)) :draw-subobjects? nil)
+				)
+			)
+		)
+		(:draw-sewn-with-mesh
+			(loop for l in ^link-ref-list
+				do (with-error-handler (:error-message (concatenate "Error drawing "(write-to-string (object-name l))) :show-system-error? nil)
+					(draw (the link-solid-geometry (:from l)) :draw-subobjects? nil)
+					(draw (the link-mesh-model (:from l)))
+				)
+			)
+		)
+		(:undraw
+			(undraw self)
+		)
+		(:draw-with-mesh
+			(draw self)
+		)
+	)
+	
+)
 
 (define-class folder-info-model
   :inherit-from (object)
@@ -278,7 +377,7 @@
                    options-list (children ^folders :class 'folder-info-model)
                    
                    mode 'menu
-                   formula (nth (position "four bar" !labels-list) !options-list)
+                   formula (nth (position "solid knuckle" !labels-list) !options-list)
                    )
                
                property-objects-list (list 
@@ -293,9 +392,7 @@
 
                write-to-file (write-save-fedem-solver !superior)
                )
-  :subobjects (
-
-               
+  :subobjects (               
                (constraints :class 'constraint-collection
                    )
                (points :class 'point-collection
