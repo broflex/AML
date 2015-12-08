@@ -470,6 +470,7 @@
                                 collect (remove "-section" (write-to-string option))
                                 )
                   )
+
               property-objects-list (list 
                                      (list (the superior cross-section-type self) 
                                            '(automatic-apply? t)
@@ -484,7 +485,9 @@
                                      '("Draw..." (button1-parameters :draw button3-parameters :draw)
                                        ui-work-area-action-button-class)
                                      '("Undraw..." (button1-parameters :undraw button3-parameters :undraw)
-                                       ui-work-area-action-button-class)                                     
+                                       ui-work-area-action-button-class)
+									 '("Set end frame equal to start frame (remove twisting)" (button1-parameters :remove-twisting)
+                                       ui-work-area-action-button-class)
                                      )
               )
   :subobjects (
@@ -518,6 +521,28 @@
     (:undraw
      (undraw self :subobjects? nil)
      )
+	(:remove-twisting
+		(let (
+			  (start (the spline-frame_start (:from !connection)))
+			  (end (the spline-frame_end (:from !connection)))
+			  )
+			(if (or (not (equal (the z-vector-ref (:from start))
+								(the z-vector-ref (:from end))))
+					(not (equal (the direction (:from (the x-vector-ref (:from start))))
+								(the direction (:from (the x-vector-ref (:from end)))))
+                     )
+				 )
+				 (progn (change-value (the z-vector-ref (:from end))
+							   (the z-vector-ref (:from start)))
+					    (change-value (the x-vector-ref (:from end))
+							   (the x-vector-ref (:from start)))
+					    (draw self :draw-subobjects? nil)
+					)
+				 nil
+				)
+		)
+	 )
+	
     )
   )
 

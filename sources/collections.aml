@@ -377,7 +377,7 @@
                    options-list (children ^folders :class 'folder-info-model)
                    
                    mode 'menu
-                   formula (nth (position "solid knuckle" !labels-list) !options-list)
+                   formula (nth (position "double wishbone-suspension" !labels-list) !options-list)
                    )
                
                property-objects-list (list 

@@ -681,7 +681,7 @@
 			   
 			   ;; Objects used to create the male joint geometry ---->
 			   (fork :class 'difference-object
-					object-list (list ^^box ^^subtracted-box)
+					object-list (list ^^box ^^subtracted-box ^^trim-object ^^sphere)
 					)
 				
 			   (subtracted-box :class 'box-object
@@ -709,7 +709,42 @@
                    diameter ^^inner-radius
                    height (* ^^outer-radius 2)
                    )
-			    ;; <-------
+				
+			   (trim-box :class 'box-object
+					reference-object ^main-frame
+					width ^^inner-radius
+					height ^^outer-radius
+					depth (* ^^outer-radius 1.5)
+					orientation (list 
+								(translate (list (* ^^inner-radius -0.5) 0 0))
+								)
+					)
+				
+			   (trim-cyl :class 'cylinder-object
+					reference-object ^main-frame
+					diameter ^^outer-radius
+					height (* ^^outer-radius 1.5)
+					)
+				
+			    (trim-object :class 'difference-object
+					object-list (list ^^trim-box ^^trim-cyl)
+					)
+			    
+				
+				(difference-sphere :class 'sphere-object
+					reference-object ^main-frame
+					diameter (* ^^outer-radius 3)
+					)
+					
+				(trim-sphere :class 'sphere-object
+					reference-object ^main-frame
+					diameter (* ^^outer-radius 4)
+					)
+					
+				(sphere :class 'difference-object
+					object-list (list ^^trim-sphere ^^difference-sphere)
+					)
+				;; <-------
 				
 				;; Used as the difference-list in link-geometry-class --->
                (difference-box :class 'difference-object
