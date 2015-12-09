@@ -1,3 +1,7 @@
+;;; -----------------------------
+;;; COLLECTIONS DEFINITIONS
+;;; -----------------------------
+
 ;;; Constructs a generic collecion-class, used by the different collections
 (define-class collection-class
 	:inherit-from (object)
@@ -484,3 +488,7 @@
 	)
     )
 )
+
+;;; -----------------------------
+;;; END COLLECTIONS DEFINITIONS
+;;; -----------------------------
