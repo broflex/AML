@@ -486,7 +486,10 @@
                                        ui-work-area-action-button-class)
                                      '("Undraw..." (button1-parameters :undraw button3-parameters :undraw)
                                        ui-work-area-action-button-class)
+									   ""
 									 '("Set end frame equal to start frame (remove twisting)" (button1-parameters :remove-twisting)
+                                       ui-work-area-action-button-class)
+									 '("Reset values" (button1-parameters :reset-values)
                                        ui-work-area-action-button-class)
                                      )
               )
@@ -542,6 +545,13 @@
 				)
 		)
 	 )
+	(:reset-values
+		(progn 
+			(smash-value (the z-vector-ref (:from (the spline-frame_end (:from !connection)))))
+			(smash-value (the x-vector-ref (:from (the spline-frame_end (:from !connection)))))
+			(draw self :draw-subobjects? nil)
+		)
+	)
 	
     )
   )
