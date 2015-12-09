@@ -1,7 +1,3 @@
-;;; -----------------------------
-;;; COLLECTIONS DEFINITIONS
-;;; -----------------------------
-
 ;;; Constructs a generic collecion-class, used by the different collections
 (define-class collection-class
 	:inherit-from (object)
@@ -9,8 +5,6 @@
 		collection-type nil
 	)
 )
-
-
 ;;; Checks whether a specific file is accessible or not, if so then execute the corresponding read method
 (define-method read-from-file collection-class ()
 	(let (	
@@ -33,7 +27,6 @@
 	)
     )
 )
-
 ;;; Executes the read-from-file method and creates the corresponding subobjects for the constraints
 (define-class constraint-collection
 	:inherit-from (series-object collection-class)
@@ -44,7 +37,6 @@
 			'("Draw/undraw all joints with mating nodes" (button1-parameters :draw-joints-mesh button3-parameters :undraw-joints)
 			ui-work-area-action-button-class)
 		)
-		
 		collection-type 'constraints
 		constraint-list (read-from-file !superior)
 		quantity (length ^constraint-list)
@@ -105,7 +97,6 @@
 		)
 	)  
 )
-
 ;;; Button actions for undrawing joints
 (define-method work-area-button3-action constraint-collection (params)
 	(case params
@@ -130,8 +121,6 @@
 		)
 	)
 )
-
-
 ;;; Executes the read-from-file and creates the corresponding subobjects for the points
 (define-class point-collection
 	:inherit-from (series-object collection-class)
@@ -157,12 +146,10 @@
 		)
 	)
 )
-
 ;;; Defines the default properties of each shape
 (define-class shape-data-model
 	:inherit-from (object)
 	:properties (
-		
 		link-ref (default 'default)
 		sweep-index (default 'default)
 		cross-section-type (read-from-string (remove "-section" (write-to-string (default 'circular-section))))
@@ -190,7 +177,6 @@
 		)
 	)
 )
-
 ;;; Reads each line of the shapes file and adds this to a list 
 ;;; - later to be used to create subobjects of shapes
 (defun read-shapes-from-file (stream)
@@ -205,7 +191,6 @@
 		)
 	)
 )
-
 ;;; Creates all the links in the object tree
 (define-class link-collection
 	:inherit-from (series-object)
@@ -250,10 +235,8 @@
 		)
 		))
 		) '<)
-		
 		(init-default-shape :class 'shape-data-model
 		)
-		
 		default-shape (let(
 			(def (loop for shape in (children ^^shapes :class 'shape-data-model)
 				when (equal 'default (the link-ref (:from shape)))
@@ -262,7 +245,6 @@
 		)
 		(if def def ^init-default-shape)
 		)
-		
 		quantity (length ^link-list)
 		class-expression 'link-model-class
 		series-prefix 'link
@@ -275,13 +257,10 @@
 		)
 	)
 )
-
 ;;; Gets the link reference from a link-collection
 (define-method get-link-ref link-collection (link-index)
 	(nth (position link-index !link-list) ^link-ref-list)
 )
-
-
 ;;; Button actions for drawing/undrawing links (with and without mesh),
 ;;; setting cross-section-type and setting dimensions
 (define-method work-area-button1-action link-collection (params)
@@ -332,7 +311,6 @@
 	)
 	
 )
-
 ;;; Defines the data-model for folders
 (define-class folder-info-model
 	:inherit-from (object)
@@ -364,8 +342,6 @@
 		)
 	)
 )
-
-
 ;;; Creates the different collections (constraint, point, link, shape and meshdb) as subobjects
 (define-class mechanism-collection
 	:inherit-from (data-model-node-mixin)
@@ -384,14 +360,12 @@
 			mode 'menu
 			formula (nth (position "four bar" !labels-list) !options-list)
 		)
-		
 		property-objects-list (list 
 			(list (the superior mechanism-selection self) 
 			'(automatic-apply? t))
 		)
 		(folders :class 'folder-collection
 		)
-		
 		write-to-file (write-save-fedem-solver !superior)
 	)
 	:subobjects (
@@ -445,7 +419,6 @@
 				and collect idcount into trs
 				finally (setf triads (append triads (list trs)))  
 			)
-			
 		)
         (print triads)
         (setf extidcount 0)
@@ -488,7 +461,3 @@
 	)
     )
 )
-
-;;; -----------------------------
-;;; END COLLECTIONS DEFINITIONS
-;;; -----------------------------
