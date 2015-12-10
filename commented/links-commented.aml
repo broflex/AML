@@ -1,6 +1,3 @@
-;;; -----------------------------
-;;; LINK DEFINITIONS
-;;; -----------------------------
 
 (defun connection-combinations (n)
    (loop for j from 0 to (- n 2)
@@ -125,11 +122,25 @@
                    )
                )
   )
+;;; Not in use from ------->
+(define-method error-recovery-method surface-data-model ()
+	(message (format nil "The object ~a is recovering from its last error"
+		(object-name self)))
+	nil
+ )
+ 
+(defun error-recovery-function (object system-error-message)
+	(message system-error-message)
+	(error-recovery-method object)
+ ) 
+;;; Not in use to <--------
 
 ;;; Instantiates every surface-data-model on a link 
 (define-class surfaces-on-link-collection
   :inherit-from (series-object)
   :properties (
+;;;                closed-loops-combinations (3-edge-loop-combinations (length ^sweeps-ref-list))
+;;;                closed-loops-combinations (3-edge-loop-combinations (length ^constraints-incident-on-link-list))
                closed-loops-combinations (sweep-loop-combinations (length ^constraints-incident-on-link-list))
                visible-members-index (loop for mem in ^visible-members-ref-list
                                        collect (the index (:from mem))
@@ -154,6 +165,9 @@
 (define-class connection-model
   :inherit-from (nurb-curve-object)
   :properties (
+               ;; traverse to superior reference for
+;;;                frame_D (the sub-frame (:from 
+;;;                frame_A 
                pij (convert-coords ^frame_D '(0 0 0) :from :local :to :global)
                wij (convert-vector ^frame_D '(0 0 1) :from :local :to :global)
 
@@ -179,7 +193,7 @@
                                               (list (append start-tangent start-weight) (append end-tangent end-weight) )
                                               )
                                             ) )
-                               ;;; if param_a == param_c && paramb=0
+                               ;; if param_a == param_c && paramb=0
                                ('intersecting (let (
                                                     (center (nth 0 ^inter_points ))
 
@@ -233,28 +247,33 @@
   :subobjects (
 ;;;               cross section at start of spline
                (spline-frame_start :class 'frame-data-model
+;;;                    reference-object ^frame_D
                    point-ref ^point-ref_D
                    z-vector-ref ^z-vector-ref_D
                    
                    (x-vector-ref :class 'vector-data-model
+;;;                                  direction ^^perpendicular-dir
                                  direction (subtract-vectors (nth 1 ^points)  (nth 0 ^points))
                                  )
                    )
 ;;;               cross section at end of spline
                (spline-frame_end :class 'frame-data-model
+;;;                    reference-object ^frame_A
                    point-ref ^point-ref_A
                    z-vector-ref ^z-vector-ref_A
                    
                    (x-vector-ref :class 'vector-data-model
+;;;                                   direction ^^perpendicular-dir
                                  direction (subtract-vectors (nth (1- (length ^points)) ^points) (nth (- (length ^points) 2) ^points))
                                  )
                    )
-               ;;; Augumented frames from SU-convention
+               ;;augumented frames from SU-convention
                (frame_B :class 'frame-data-model
                    (point-ref :class 'point-data-model
                               coordinates (nth 0 ^^^inter_points)
                               )
                    (z-vector-ref :class 'vector-data-model
+;;;                                  direction (the direction (:from ^^z-vector-ref_D) )
                                  direction ^^wij
                                  )
                    (x-vector-ref :class 'vector-data-model
@@ -267,6 +286,7 @@
                                coordinates (nth 1 ^^^inter_points)
                                )
                    (z-vector-ref :class 'vector-data-model
+;;;                                   direction (the direction (:from ^^z-vector-ref_A) )
                                  direction ^^wjk
                                  )
                    (x-vector-ref :class 'vector-data-model
@@ -396,10 +416,13 @@
               z-vector-ref_A (the z-vector-ref (:from ^frame_A ))
 
               
+              ;;unused property, should differentiate between commen-sweeps on start and end constraint
               common-sweeps (loop for constraint in ^connection-between-constraints
                               collect (remove !superior (the link-ref-on-constraint (:from constraint)))
                               )
     
+              
+              ;;cross section dimension, width 0.04 / height 0.04
               shape-ref nil
               width (nth 0 (the solid-dimensions (:from ^shape-ref)))
               height (if (< 1 (length (the solid-dimensions (:from ^shape-ref))))
@@ -609,8 +632,15 @@
                constraint-connection-combination (connection-combinations (length ^constraints-incident-on-link-list))
                
                surfaces-ref-list (children ^surfaces :class 'surface-data-model :test '(and !geom !display?))		
+			   ;; only include sweeps which are not "turned off"
                members-ref-list (children ^sweeps :class 'member-solid-model)
                visible-members-ref-list (children ^sweeps :class 'member-solid-model :test '!display?)
+			   ;mating-surface-list (loop for c in ^constraints-incident-on-link-list
+				;						append (the mating-surface-nodes (:from c))
+				;						)
+               ;mating-surface-list (the mating-surface-nodes (:from (the male-element-solid-model (:from (nth 0 ^constraints-incident-on-link-list)))))
+;;;                solid-constraints-ref-list (children ^solid-constraints :class 'solid-constraint-model)
+               
 			   
                union-list (loop for constraint in ^constraints-incident-on-link-list
                             append (the union-list (:from constraint))
@@ -618,7 +648,6 @@
                difference-list (loop for constraint in ^constraints-incident-on-link-list
                                  append (the difference-list (:from constraint))
                                  )
-								 
 			   ;;; List of the final geometry
                object-list (append
                             (list ^union-element)
@@ -645,6 +674,7 @@
                                         0 0.1 0 20.0 1.0e-5)
                    object-list (append
                                 (list ^union-element)
+;;;                             (list ^imprint-union-element)
                                 ^difference-list
                                 )
                    simplify? t
@@ -656,12 +686,14 @@
                    tag-attributes (list ^max-element-size .1
                                         0 0.1 0 20.0 1.0e-5)
                    object-list (append  ^surfaces-ref-list
+;;;                                         (list ^sewn-links)
                                         ^visible-members-ref-list
                                         ^^union-list)
                    ;;; simplify? t removes common boundaries in the geometry
 				   ;;; simplify? nil keeps them
 				   simplify? t
-                   )               
+                   )
+				render 'shaded   
                )
   :subobjects (
                (surfaces :class 'surfaces-on-link-collection
@@ -695,7 +727,7 @@
 (define-class link-model-class
   :inherit-from (object)
   :properties (
-               ;:; Properties set from parent init-form
+               ;; properties set from parent init-form
                constraints-incident-on-link-list nil
                connection-between-2-constraints-combinations (list-combinations ^constraints-incident-on-link-list)
                link-index nil
@@ -714,7 +746,5 @@
                )
   )
 
-;;; -----------------------------
-;;; END LINK DEFINITIONS
-;;; -----------------------------       
+              
      

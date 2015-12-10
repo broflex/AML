@@ -1,16 +1,17 @@
-;;Superclass used for querying class-names
+;;; -----------------------------
+;;; CROSS-SECTION DEFINITIONS
+;;; -----------------------------
+
+;;; Superclass used for querying class-names
 (define-class section-model
   :inherit-from(tagging-object position-object)
   :properties (
-               ;; must be set on init from parent object
+               ;;; must be set on init from parent object
                
                max-element-size 0.004
                tag-dimensions '(1 2)
                tag-attributes (list ^max-element-size .1
                                     0 0.1 0 20.0 1.0e-5)
-;;;                width (set-initial-dimension (the self) :default-value 0.04 )
-;;;                height (set-initial-dimension (the self) :default-value 0.04 )
-
                )
   )
 (define-method max-width section-model ()
@@ -21,6 +22,7 @@
   !height
   )
 
+;;; Unused from ------->
 (define-method set-initial-dimension property-object (&key (property-list (list (object-name (the self)))) (default-value 0.02) )
   (let ()
     (loop for property in property-list
@@ -31,7 +33,8 @@
     default-value
     )
   )
-
+;;; Unused to <-------
+  
 (define-class circular-section
   :inherit-from (imprint-class section-model)
   :properties (
@@ -155,11 +158,11 @@
                point2 (list 0 (/ ^height 2) 0)
                )
   )
-;; noe joint displacement for shell model
+
 (define-method max-width line-section ()
   !height
   )
-;; 
+
 (define-method max-height line-section ()
   0
   )

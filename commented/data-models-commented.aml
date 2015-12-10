@@ -9,6 +9,7 @@
                (coordinates :class 'editable-data-property-class
                     label "Coordinates"
                    )
+
                property-objects-list (list 
                                       (list (the superior coordinates self) 
                                             '(apply-formula? t)) 
@@ -30,13 +31,17 @@
                    formula (default)
                    )
                length 0.2
+
                base-point (the coordinates (:from (the superior point-ref)) )
+               
                property-objects-list (list 
                                       (list (the coordinates self (:from (the superior point-ref)) ) 
                                             '(apply-formula? t))
                                       (list (the superior direction self)
                                             '(apply-formula? t))
                                       )
+               
+
                )
   )
 

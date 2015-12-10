@@ -166,7 +166,7 @@
 (define-method max-height line-section ()
   0
   )
-  
+
 (define-class I-beam-section
   :inherit-from (union-object section-model)
   :properties (
@@ -284,6 +284,4 @@
                )
   )
                                 
-;;; -----------------------------
-;;; END CROSS-SECTION DEFINITIONS
-;;; -----------------------------
+

@@ -113,12 +113,15 @@
                    load-vector (list 0.0 0.0 ^^z-load)
                    )
                (load-case-1 :class 'analysis-load-case-class
+;;;                    load-objects-list (list ^nodal-load)
+;;;                    constraint-objects-list (list ^^fixed-nodes-constraint)
                 )
-			   (nastran-interface :class 'nastran-analysis-class
+               (nastran-interface :class 'nastran-analysis-class
                    analysis-model-object ^superior
                    model-name (the folder (:from ^^mechanism-selection))
                    nastran-file-name (concatenate (write-to-string  (object-name ^^superior)) ".bdf")
                    nastran-version (nth 2 '(:nei-nastran :msc-nastran :nx-nastran))
+;;;                    analysis-directory (logical-path "C:\\Users\\Rasmus\\Documents\\NTNU\\Masteroppgave\\forelesning_150326\\mesh\\simple-beam\\")
                    )
                )
   )

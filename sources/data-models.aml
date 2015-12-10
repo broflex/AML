@@ -1,11 +1,13 @@
+;;; -----------------------------
+;;; DATA MODEL DEFINITIONS
+;;; -----------------------------
 
-;; Use point-object to define position properties
+;;; Use point-object to define position properties
 (define-class point-data-model
   :inherit-from (point-object data-model-node-mixin)
   :properties (
                (coordinates :class 'editable-data-property-class
                     label "Coordinates"
-;;;                    formula '(0 0 0)
                    )
 
                property-objects-list (list 
@@ -15,14 +17,13 @@
                )
   )
 
-;; Direction vector
+;;; Direction vector
 (define-class vector-data-model
   :inherit-from (vector-class data-model-node-mixin)
   :properties (
-               ;;superior reference traverse
+               ;;; Superior reference traverse
                point-ref (default ^point-default)
                (point-default :class 'point-data-model
-                   ;A label here does not affect GUI
                    coordinates '(0 0 0)
                    )
                (direction :class 'editable-data-property-class
@@ -32,7 +33,6 @@
                length 0.2
 
                base-point (the coordinates (:from (the superior point-ref)) )
-               ;;sec-point (add-vectors ^base-point (multiply-vector-by-scalar ^direction ^length))
                
                property-objects-list (list 
                                       (list (the coordinates self (:from (the superior point-ref)) ) 
@@ -46,7 +46,7 @@
   )
 
 
-;; Frame, coordinate system
+;;; Frame, coordinate system
 (define-class frame-data-model
   :inherit-from (coordinate-system-class)
   :properties (
@@ -79,14 +79,7 @@
                                       )
                )
   )
-
-
-;;; (define-class su-vector-model
-;;;   :inherit-from (vector-data-model)
-;;;   :properties(
-              
-
-;;; (define-class su-frame-model
-;;;   :inherit-from (frame-data-model)
-;;;   :properties(
-;;;               vector-k (the direction (:from (the superior
+  
+;;; -----------------------------
+;;; END DATA MODEL DEFINITIONS
+;;; -----------------------------

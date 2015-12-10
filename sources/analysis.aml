@@ -1,5 +1,8 @@
+;;; -----------------------------
+;;; ANALYSIS DEFINITIONS
+;;; -----------------------------
 
-
+;;; Class responsible for meshing
 (define-class link-mesh-class
   :inherit-from (object)
   :properties (
@@ -11,8 +14,10 @@
                )
   :subobjects (
                (link-mesh :class 'paver-mesh-class
-                   object-to-mesh ^^geometry-model-object
+                   ;;; geometry-model-object is the link-solid-geometry in link-model-class
+				   object-to-mesh ^^geometry-model-object
                    mesh-database-object ^^mesh-database
+				   
 ;;;                for solid mesh use:  element-shape :tet
                    element-shape :quadtri
                    solid-mesh? t
@@ -120,4 +125,7 @@
                    )
                )
   )
-               
+
+;;; -----------------------------
+;;; END ANALYSIS DEFINITIONS
+;;; -----------------------------  

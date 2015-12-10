@@ -1,5 +1,4 @@
 
-;;replacing calculate-complete-graph-combi
 (defun connection-combinations (n)
    (loop for j from 0 to (- n 2)
      append (loop for k from (1+ j) to (1- n)
@@ -8,7 +7,7 @@
      )
    )
 
-;Returns possible connections between joints list list, or p joints
+;;; Returns possible connections between joints list list, or p joints
 (defun list-combinations (p)
   (let (
         (l (if (typep p 'list) p (if (typep p 'fixnum) (loop for i from 0 to (1- p) collect i) (list ) ) ) )
@@ -51,8 +50,8 @@
     )
   )
 
-; Binomial: C(n,3) = 3! / ( 3! (n - 3)! 
-; Output: List unique combinations of three, given n numbers
+;;; Binomial: C(n,3) = 3! / ( 3! (n - 3)! 
+;;; Output: List unique combinations of three, given n numbers
 (defun 3-edge-loop-combinations (n)
    (loop for i from 0 to (- n 3)   
      append (loop for j from (1+ i) to (- n 2)
@@ -81,12 +80,14 @@
   (* (expt 10 (* 0.2 (- grade 1))) (+ (* 0.45 (expt d (/ 1 3))) (* 0.001 d)))
   )
 
+;;; Model creating a thickened surface from three connected curves
 (define-class surface-data-model
   :inherit-from (tagging-object surface-thickened-class)
   :properties (
                tag-dimensions '(1 2)
                tag-attributes (list ^^max-element-size .1
                                     0 0.1 0 20.0 1.0e-5)
+									
                (display? :class 'flag-property-class
                    formula  (loop for i in ^edge-combination
                               when (or (not (the display? (:from (nth i ^members-ref-list)))) (not (the connection geom (:from (nth i ^members-ref-list)))) )
@@ -96,12 +97,8 @@
                    )
                edge-combination nil
                source-object ^surface
-			   ;source-object (with-error-handler (:error-function 'error-recovery-function
-				;										:error-function-argument (root-object)
-				;										)
-				;										^surface
-				;										)
-               ;;surface thickness 20% of smallest cross-section height
+
+               ;;; Surface thickness 20% of smallest cross-section height
                thickness (* 0.2 (loop for i in ^edge-combination
                            minimize (max-height (the cross-section_D (:from (nth i ^members-ref-list))))
                            ))
@@ -118,14 +115,14 @@
                )
   :subobjects (
                (surface :class 'surface-from-three-edge-curves-class
-			       ;connection is a nurb-curve-object
+			       ;;; the connection is a nurb-curve-object
                    edge-1-object (the connection (:from (nth (nth 0 ^edge-combination) ^members-ref-list)) )
                    edge-2-object (the connection (:from (nth (nth 1 ^edge-combination) ^members-ref-list)) )
                    edge-3-object (the connection (:from (nth (nth 2 ^edge-combination) ^members-ref-list)) )
                    )
                )
   )
-
+;;; Not in use from ------->
 (define-method error-recovery-method surface-data-model ()
 	(message (format nil "The object ~a is recovering from its last error"
 		(object-name self)))
@@ -136,7 +133,9 @@
 	(message system-error-message)
 	(error-recovery-method object)
  ) 
-  
+;;; Not in use to <--------
+
+;;; Instantiates every surface-data-model on a link 
 (define-class surfaces-on-link-collection
   :inherit-from (series-object)
   :properties (
@@ -162,6 +161,7 @@
 ;;; Sheth-Uicker DEFINITIONS
 ;;; -----------------------------
 
+;;; Model creating a NURBS curve between two endpoints
 (define-class connection-model
   :inherit-from (nurb-curve-object)
   :properties (
@@ -298,11 +298,11 @@
   )
  
 
-;; Middle point
+;;; Middle point
 (defun m-point (p1 d1 p2 d2)
   (add-vectors p1 (proj_v d1 (multiply-vector-by-scalar (subtract-vectors p2 p1) 0.5) ) )
   )
-;; Closest point
+;;; Closest point
 (defun cl-point (p1 d1 p2 d2)
   (let (
         (n1x (cross-product d1 d2))
@@ -319,7 +319,7 @@
   )
 
 
-;;determine configuration of two lines in relation too eachother
+;;; Determine configuration of two lines in relation too eachother
 (define-method line-pose connection-model ()
   (let (
         (v0_1 (cross-product !pij !wij) )
@@ -333,10 +333,10 @@
     )
   )
 
-;; Generalized closest points
-;; if lines Gij Gjk are intersecting or skew: closest point
-;; if lines Gij Gjk are coincident or parallel: mid-point
-;; Calculate intersection between lines
+;;; Generalized closest points
+;;; If lines Gij Gjk are intersecting or skew: closest point
+;;; If lines Gij Gjk are coincident or parallel: mid-point
+;;; Calculate intersection between lines
 (define-method inter_section connection-model (line-config)
    (case line-config
      ('skew
@@ -353,7 +353,7 @@
       )
      )
    )
-;;get Generalized perpendicular direction                    
+;;; Get Generalized perpendicular direction                    
 (define-method perp-dir connection-model (line-config)
   (let (
         (cross (cross-product !wij !wjk) )
@@ -375,14 +375,14 @@
   )
 
 
-;; the orthogonal projection of a vector b onto some vector a
-;; pi_a(b)
+;;; The orthogonal projection of a vector b onto some vector a
+;;; pi_a(b)
 (defun proj_v (a b)
   (multiply-vector-by-scalar a (/ (dot-product b a ) (dot-product a a )) )
   )
 
-;; the orthogonal projection of a vector b into the orthogonal complement of a of some vector a
-;; tau_a(b) 
+;;; The orthogonal projection of a vector b into the orthogonal complement of a of some vector a
+;;; tau_a(b) 
 (defun orthogonal-projection-complement (a b)
   (subtract-vectors b (proj_v a b) )
   )
@@ -394,6 +394,7 @@
   (/ (* r a (sin theta)) (sqrt (- (* a a) (* r r (cos theta) (cos theta)))))
   )
 
+;;; Model for a link member
 (define-class member-solid-model
   :inherit-from (tagging-object general-sweep-class)
   :properties(
@@ -437,7 +438,7 @@
                           (nth 1 (the solid-dimensions (:from ^shape-ref)))
                           )
               
-              ;;; sweep parameters
+              ;;; Sweep parameters
               profile-objects-list (list
                                     ^cross-section_D
                                     ^cross-section_A
@@ -454,7 +455,7 @@
               path-object ^connection
               tangential-sweep? t
                                
-              ;;; if two cross-sections, only nil works, with one cross-section t gives best mesh
+              ;;; If two cross-sections, only nil works, with one cross-section t gives best mesh
               simplify? nil
               render 'shaded
 
@@ -516,6 +517,7 @@
                )
   )
 
+ ;;; Left-click button methods for member-solid-model
 (define-method work-area-button1-action member-solid-model (params)
   (case params
     (:draw
@@ -556,8 +558,7 @@
     )
   )
 
-
-  
+ ;;; Right-click button methods for member-solid-model 
 (define-method work-area-button3-action member-solid-model (params)
   (case params
     (:draw
@@ -569,29 +570,23 @@
     )
   )
 
+;;; Instantiates every member on a link 
 (define-class members-on-link-collection
   :inherit-from (series-object)
-  :properties (
-;;;                traverse to superior reference:
-;;;                ^connection-between-2-constraints-combinations
-;;;                ^shapes-on-link
-;;;                ^constraint-connection-combination
-               
+  :properties (               
                quantity (length ^connection-between-2-constraints-combinations)
                class-expression 'member-solid-model
                series-prefix 'member
                init-form '(
                            connection-between-constraints (nth ^index ^^connection-between-2-constraints-combinations)
 
-                           shape-ref (nth ^index ^^shapes-on-link)
-                           
+                           shape-ref (nth ^index ^^shapes-on-link)          
                            )
                )
   )
 
-
+;;; Class generating a link's total geometry, including joints
 (define-class link-geometry-class
-;;;   :inherit-from (tagging-object difference-object)
   :inherit-from (tagging-object geometry-with-split-periodic-faces-class)
   :properties (
 			   property-objects-list (list
@@ -603,12 +598,8 @@
 										'("Undraw" (button1-parameters :undraw-sewn)
                                         ui-work-area-action-button-class)
 										)
-               ;;used for geometry-with-split-periodic-faces-clas
+               ;;; Used for geometry-with-split-periodic-faces-clas
                source-object ^difference-element
-               
-			   ;(max-width :class 'editable-data-property-class
-				;	formula ()
-				;)
 			   
                max-element-size 0.005
                tag-dimensions '(1 2)
@@ -639,8 +630,6 @@
                                 )
 
                constraint-connection-combination (connection-combinations (length ^constraints-incident-on-link-list))
-
-;;;                combination-on-constraint (connections-on-constraints (length ^constraints-incident-on-link-list))
                
                surfaces-ref-list (children ^surfaces :class 'surface-data-model :test '(and !geom !display?))		
 			   ;; only include sweeps which are not "turned off"
@@ -652,16 +641,16 @@
                ;mating-surface-list (the mating-surface-nodes (:from (the male-element-solid-model (:from (nth 0 ^constraints-incident-on-link-list)))))
 ;;;                solid-constraints-ref-list (children ^solid-constraints :class 'solid-constraint-model)
                
-               union-list (loop for l in ^constraints-incident-on-link-list
-                            append (the union-list (:from l))
+			   
+               union-list (loop for constraint in ^constraints-incident-on-link-list
+                            append (the union-list (:from constraint))
                             )
-               difference-list (loop for l in ^constraints-incident-on-link-list
-                                 append (the difference-list (:from l))
+               difference-list (loop for constraint in ^constraints-incident-on-link-list
+                                 append (the difference-list (:from constraint))
                                  )
-
+			   ;;; List of the final geometry
                object-list (append
                             (list ^union-element)
-;;;                             (list ^imprint-union-element)
                             ^difference-list
                             )
                simplify? nil
@@ -700,8 +689,11 @@
 ;;;                                         (list ^sewn-links)
                                         ^visible-members-ref-list
                                         ^^union-list)
-                   simplify? t
-                   )               
+                   ;;; simplify? t removes common boundaries in the geometry
+				   ;;; simplify? nil keeps them
+				   simplify? t
+                   )
+				render 'shaded   
                )
   :subobjects (
                (surfaces :class 'surfaces-on-link-collection
@@ -710,9 +702,10 @@
                    )
                )
   )
-  
+;;; Right-click button methods for member-solid-model  
 (define-method work-area-button1-action link-geometry-class (params)
   (case params
+    ;;; Sewn geometry refers to the union of a member and a joint
     (:draw-sewn-geometry
      (draw self :draw-subobjects? nil)
      )
@@ -729,6 +722,8 @@
     )
   )  
 
+
+;;; Model used to hold the link geometry and its mesh
 (define-class link-model-class
   :inherit-from (object)
   :properties (
