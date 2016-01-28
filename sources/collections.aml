@@ -27,7 +27,7 @@
       )
     )
   )
-    
+  
 ;;; Executes the read-from-file method and creates the corresponding subobjects for the constraints
 (define-class constraint-collection
   :inherit-from (series-object collection-class)
@@ -164,7 +164,6 @@
 ;;;                points-list (FORMATTED-list-FROM-FILE (logical-path MECHANISM-LIBRARY "coordinates.txt") :element-format '(x y z))
                collection-type 'shapes
                shapes-list (read-from-file !superior)
-			   ;current-shape-list (nth ^index ^shapes-list)
                quantity (length ^shapes-list)
                class-expression 'shape-data-model
                series-prefix 'shape
@@ -189,7 +188,7 @@
      until (equal line :eof)
      for ls = (string-to-delimited-token-list line :delimiter #\tab :string-token? nil)
      for shape-data = (list
-                       (nth 0 ls) (nth 1 ls) (nth 2 ls) (read-from-string (nth 3 ls)) (read-from-string (nth 4 ls)) (read-from-string (nth 5 ls)) (read-from-string (nth 6 ls))
+                       (read-from-string(nth 0 ls)) (nth 1 ls) (nth 2 ls) (read-from-string (nth 3 ls)) (read-from-string (nth 4 ls)) (read-from-string (nth 5 ls)) (read-from-string (nth 6 ls))
                        )
      collect shape-data
      )
@@ -366,6 +365,33 @@
                            )
                )
   )
+  
+(defun read-design-variables-from-file()
+	(let (
+        (file-path (logical-path (the path (:from ^mechanism-selection)) "design-variables.txt" ) )
+        )
+    (if (and
+         file-path
+         (stringp file-path)
+         (probe-file file-path)
+         )
+        (with-open-file (file file-path :direction :input)
+          (loop for line = (read-line file  nil :eof)
+			until (equal line :eof)
+			for ls = (string-to-delimited-token-list line :delimiter #\tab :string-token? nil)
+			for design-data = (list
+			(nth 0 ls) (nth 1 ls) (nth 2 ls) )
+			append design-data
+			)
+          )
+      (progn
+        (message (format nil "\"~a\" is not a valid file path." file-path) :append? t)
+        nil
+        )
+      )
+    )
+   )  
+  
 ;;; Creates the different collections (constraint, point, link, shape and meshdb) as subobjects
 (define-class mechanism-collection
   :inherit-from (data-model-node-mixin)
@@ -386,11 +412,14 @@
                    formula (nth (position "four bar" !labels-list) !options-list)
                    )
 				   
+				(design-variables :class 'option-property-class
+					mode 'menu
+					options-list (read-design-variables-from-file)
+				)
 
-               
                property-objects-list (list 
-                                      (list (the superior mechanism-selection self) 
-                                            '(automatic-apply? t))
+											(list (the superior mechanism-selection self) 
+												'(automatic-apply? t))
 											""
 											'("Draw mechanism" (button1-parameters :draw-sewn-wo-mesh)
 											ui-work-area-action-button-class)
@@ -401,6 +430,7 @@
 											ui-work-area-action-button-class)
 											'("Export to .bdf" (button1-parameters :bdf-export)
 											ui-work-area-action-button-class)
+											(list (the superior design-variables self) )
                                      )
 ;;;                Storage
                
@@ -425,6 +455,7 @@
                    )
                )
   )
+
 ;;; Writes the mechanism to a simulation file (.fsi)
 (define-method write-save-fedem-solver  mechanism-collection ()
   (let (

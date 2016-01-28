@@ -9,7 +9,7 @@
 (in-package :AML)
 
 (defvar #MECHANISM-LIBRARY# "")
-(setf #MECHANISM-LIBRARY# (logical-path :mechanism-system "c:users\user\desktop\AML kode\Rasmus_vedlegg\library"))
+(setf #MECHANISM-LIBRARY# (logical-path :mechanism-system "library"))
 
 (define-system :mechanism-system
   :files '(
