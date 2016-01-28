@@ -27,7 +27,7 @@
       )
     )
   )
-    
+  
 ;;; Executes the read-from-file method and creates the corresponding subobjects for the constraints
 (define-class constraint-collection
   :inherit-from (series-object collection-class)
@@ -168,12 +168,13 @@
                class-expression 'shape-data-model
                series-prefix 'shape
                init-form '(
-                           link-ref (nth 0 (nth ^index ^shapes-list))
-                           sweep-index (nth 1 (nth ^index ^shapes-list))
-                           cross-section-type (nth 2 (nth ^index ^shapes-list))
-                           solid-dimensions (nth 3 (nth ^index ^shapes-list))
-                           point-list (nth 4 (nth ^index ^shapes-list))
-                           weight-list (nth 5 (nth ^index ^shapes-list))
+						   header 				(nth 0 (nth ^index ^shapes-list))
+                           link-ref 			(nth 1 (nth ^index ^shapes-list))
+                           sweep-index 			(nth 2 (nth ^index ^shapes-list))
+                           cross-section-type 	(nth 3 (nth ^index ^shapes-list))
+                           solid-dimensions 	(nth 4 (nth ^index ^shapes-list))
+                           point-list 			(nth 5 (nth ^index ^shapes-list))
+                           weight-list 			(nth 6 (nth ^index ^shapes-list))
                            )
                )
   )
@@ -187,7 +188,7 @@
      until (equal line :eof)
      for ls = (string-to-delimited-token-list line :delimiter #\tab :string-token? nil)
      for shape-data = (list
-                       (nth 0 ls) (nth 1 ls) (read-from-string (nth 2 ls)) (read-from-string (nth 3 ls)) (read-from-string (nth 4 ls)) (read-from-string (nth 5 ls))
+                       (read-from-string(nth 0 ls)) (nth 1 ls) (nth 2 ls) (read-from-string (nth 3 ls)) (read-from-string (nth 4 ls)) (read-from-string (nth 5 ls)) (read-from-string (nth 6 ls))
                        )
      collect shape-data
      )
@@ -307,14 +308,14 @@
 
 		(:draw-sewn-wo-mesh
 			(loop for link in !link-ref-list
-				do (with-error-handler (:error-message (concatenate "Error drawing "(write-to-string (object-name link))) :show-system-error? nil)
+				do (with-error-handler (:error-message (concatenate "Error drawing "(write-to-string (object-name link))) :show-system-error? t)
 					(draw (the link-solid-geometry (:from link)) :draw-subobjects? nil)
 				)
 			)
 		)
 		(:draw-sewn-with-mesh
 			(loop for link in !link-ref-list
-				do (with-error-handler (:error-message (concatenate "Error drawing "(write-to-string (object-name link))) :show-system-error? nil)
+				do (with-error-handler (:error-message (concatenate "Error drawing "(write-to-string (object-name link))) :show-system-error? t)
 					(draw (the link-solid-geometry (:from link)) :draw-subobjects? nil)
 					(draw (the link-mesh-model (:from link)))
 				)
@@ -322,6 +323,11 @@
 		)
 		(:undraw
 			(undraw self)
+		)
+		(:bdf-export
+			(loop for link in !link-ref-list 
+				do (the analysis nastran-interface run-nastran@ (:from link))
+			)
 		)
 	)
 	
@@ -359,6 +365,33 @@
                            )
                )
   )
+  
+(defun read-design-variables-from-file()
+	(let (
+        (file-path (logical-path (the path (:from ^mechanism-selection)) "design-variables.txt" ) )
+        )
+    (if (and
+         file-path
+         (stringp file-path)
+         (probe-file file-path)
+         )
+        (with-open-file (file file-path :direction :input)
+          (loop for line = (read-line file  nil :eof)
+			until (equal line :eof)
+			for ls = (string-to-delimited-token-list line :delimiter #\tab :string-token? nil)
+			for design-data = (list
+			(nth 0 ls) (nth 1 ls) (nth 2 ls) )
+			append design-data
+			)
+          )
+      (progn
+        (message (format nil "\"~a\" is not a valid file path." file-path) :append? t)
+        nil
+        )
+      )
+    )
+   )  
+  
 ;;; Creates the different collections (constraint, point, link, shape and meshdb) as subobjects
 (define-class mechanism-collection
   :inherit-from (data-model-node-mixin)
@@ -376,14 +409,17 @@
                    options-list (children ^folders :class 'folder-info-model)
                    
                    mode 'menu
-                   formula (nth (position "double wishbone-suspension" !labels-list) !options-list)
+                   formula (nth (position "four bar" !labels-list) !options-list)
                    )
 				   
+				(design-variables :class 'option-property-class
+					mode 'menu
+					options-list (read-design-variables-from-file)
+				)
 
-               
                property-objects-list (list 
-                                      (list (the superior mechanism-selection self) 
-                                            '(automatic-apply? t))
+											(list (the superior mechanism-selection self) 
+												'(automatic-apply? t))
 											""
 											'("Draw mechanism" (button1-parameters :draw-sewn-wo-mesh)
 											ui-work-area-action-button-class)
@@ -392,6 +428,9 @@
 											""
 											'("Undraw" (button1-parameters :undraw button3-parameters :unset)
 											ui-work-area-action-button-class)
+											'("Export to .bdf" (button1-parameters :bdf-export)
+											ui-work-area-action-button-class)
+											(list (the superior design-variables self) )
                                      )
 ;;;                Storage
                
@@ -416,6 +455,7 @@
                    )
                )
   )
+
 ;;; Writes the mechanism to a simulation file (.fsi)
 (define-method write-save-fedem-solver  mechanism-collection ()
   (let (
